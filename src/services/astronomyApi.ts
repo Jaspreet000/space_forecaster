@@ -79,7 +79,7 @@ export async function fetchAstronomicalEvents(): Promise<AstronomicalEvent[]> {
     // Add Astronomy API data to events
     if (astronomyData.data && Array.isArray(astronomyData.data)) {
       events.push(
-        ...astronomyData.data.map((event: AstronomyApiEvent, index): AstronomicalEvent => {
+        ...astronomyData.data.map((event: AstronomyApiEvent, index: number): AstronomicalEvent => {
           const eventType = event.type.includes('METEOR') ? 'meteor' as const : 
                           event.type.includes('ECLIPSE') ? 'eclipse' as const : 
                           event.type.includes('CONJUNCTION') ? 'conjunction' as const : 
