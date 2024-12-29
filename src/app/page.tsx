@@ -1,7 +1,8 @@
 "use client";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import SpaceBackground from "@/components/SpaceBackground";
+import Link from "next/link";
 
 export default function Home() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -17,28 +18,7 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-hidden">
-      {/* Animated stars background */}
-      <div className="absolute inset-0 opacity-50">
-        {[...Array(100)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute h-1 w-1 bg-white rounded-full"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.7, 1, 0.7],
-            }}
-            transition={{
-              duration: Math.random() * 3 + 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-          />
-        ))}
-      </div>
+      <SpaceBackground />
 
       {/* Main content */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
@@ -101,20 +81,24 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1 }}
         >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
-          >
-            Explore Events
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-8 py-3 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
-          >
-            Space Weather
-          </motion.button>
+          <Link href="/events">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
+            >
+              Explore Events
+            </motion.button>
+          </Link>
+          <Link href="/weather">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-3 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
+            >
+              Space Weather
+            </motion.button>
+          </Link>
         </motion.div>
       </main>
 
