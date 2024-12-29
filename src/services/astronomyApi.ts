@@ -39,15 +39,15 @@ export async function fetchAstronomicalEvents(): Promise<AstronomicalEvent[]> {
     );
     const nasaData: NasaApodResponse[] = await nasaResponse.json();
     
-    // Add NASA data to events
+    // Add NASA data to events with explicit type casting
     events.push(
-      ...nasaData.map((item, index) => ({
+      ...nasaData.map((item, index): AstronomicalEvent => ({
         id: `nasa-${index}`,
         title: item.title,
-        type: "other",
+        type: "other" as const,  // Explicitly type as literal
         date: item.date,
         description: item.explanation.substring(0, 200) + "...",
-        visibility: "Varies",
+        visibility: "Varies"
       }))
     );
 
@@ -79,22 +79,27 @@ export async function fetchAstronomicalEvents(): Promise<AstronomicalEvent[]> {
     // Add Astronomy API data to events
     if (astronomyData.data && Array.isArray(astronomyData.data)) {
       events.push(
-        ...astronomyData.data.map((event: AstronomyApiEvent, index: number) => ({
-          id: `astronomy-${index}`,
-          title: event.type.replace(/_/g, ' ').split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' '),
-          type: event.type.includes('METEOR') ? 'meteor' : 
-                event.type.includes('ECLIPSE') ? 'eclipse' : 
-                event.type.includes('CONJUNCTION') ? 'conjunction' : 'other',
-          date: event.startTime.split('T')[0],
-          description: event.description,
-          peak_time: event.startTime.split('T')[1].split('.')[0],
-          visibility: event.magnitude ? 
-            event.magnitude < 3 ? "Excellent" :
-            event.magnitude < 5 ? "Good" :
-            "Fair" : "Varies"
-        }))
+        ...astronomyData.data.map((event: AstronomyApiEvent, index): AstronomicalEvent => {
+          const eventType = event.type.includes('METEOR') ? 'meteor' as const : 
+                          event.type.includes('ECLIPSE') ? 'eclipse' as const : 
+                          event.type.includes('CONJUNCTION') ? 'conjunction' as const : 
+                          'other' as const;
+          
+          return {
+            id: `astronomy-${index}`,
+            title: event.type.replace(/_/g, ' ').split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' '),
+            type: eventType,
+            date: event.startTime.split('T')[0],
+            description: event.description,
+            peak_time: event.startTime.split('T')[1].split('.')[0],
+            visibility: event.magnitude ? 
+              event.magnitude < 3 ? "Excellent" :
+              event.magnitude < 5 ? "Good" :
+              "Fair" : "Varies"
+          };
+        })
       );
     }
 
