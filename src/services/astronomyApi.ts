@@ -17,6 +17,18 @@ interface AstronomyApiEvent {
   magnitude?: number;
 }
 
+// Export the interface
+export interface AstronomicalEvent {
+  id: string;
+  title: string;
+  type: "meteor" | "eclipse" | "conjunction" | "other";
+  date: string;
+  description: string;
+  visibility?: string;
+  peak_time?: string;
+  intensity?: string;
+}
+
 export async function fetchAstronomicalEvents(): Promise<AstronomicalEvent[]> {
   try {
     const events: AstronomicalEvent[] = [];

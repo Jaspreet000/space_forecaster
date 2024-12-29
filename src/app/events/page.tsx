@@ -3,18 +3,10 @@ import SpaceBackground from "@/components/SpaceBackground";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { fetchAstronomicalEvents } from "@/services/astronomyApi";
-
-interface AstronomicalEvent {
-  id: string;
-  title: string;
-  type: "meteor" | "eclipse" | "conjunction" | "other";
-  date: string;
-  description: string;
-  intensity?: string;
-  visibility?: string;
-  peak_time?: string;
-}
+import {
+  AstronomicalEvent,
+  fetchAstronomicalEvents,
+} from "@/services/astronomyApi";
 
 export default function EventsPage() {
   const [events, setEvents] = useState<AstronomicalEvent[]>([]);
