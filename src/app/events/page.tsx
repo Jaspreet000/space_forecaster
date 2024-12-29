@@ -65,10 +65,13 @@ export default function EventsPage() {
         );
 
         setEvents(fetchedEvents);
-      } catch (err) {
+      } catch (error: unknown) {
         setError(
           "Failed to fetch astronomical events. Please try again later."
         );
+        if (error instanceof Error) {
+          console.error(error.message);
+        }
       } finally {
         setIsLoading(false);
       }

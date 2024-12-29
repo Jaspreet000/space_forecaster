@@ -38,6 +38,19 @@ interface SpaceWeatherData {
   kpIndex: number[];
 }
 
+interface WindData {
+  time21_5: string;
+  estimatedShockArrivalTime?: string;
+}
+
+interface AlertData {
+  messageType: string;
+  messageID: string;
+  messageURL: string;
+  messageIssueTime: string;
+  messageBody: string;
+}
+
 export default function WeatherPage() {
   const [weatherData, setWeatherData] = useState<SpaceWeatherData>({
     solarWindSpeed: [],
@@ -61,7 +74,7 @@ export default function WeatherPage() {
               -7
             )}&endDate=${getDateString(0)}`
         );
-        const windData = await windResponse.json();
+        const windData: WindData[] = await windResponse.json();
 
         // Fetch space weather alerts
         const alertsResponse = await fetch(
@@ -70,18 +83,18 @@ export default function WeatherPage() {
               -7
             )}&endDate=${getDateString(0)}`
         );
-        const alertsData = await alertsResponse.json();
+        const alertsData: AlertData[] = await alertsResponse.json();
 
         setWeatherData({
-          solarWindSpeed: windData.map((item: any) =>
+          solarWindSpeed: windData.map((item: WindData) =>
             item.estimatedShockArrivalTime
               ? 400 + Math.random() * 100
               : 300 + Math.random() * 100
           ),
-          solarWindDates: windData.map((item: any) =>
+          solarWindDates: windData.map((item: WindData) =>
             new Date(item.time21_5).toLocaleDateString()
           ),
-          alerts: alertsData.map((alert: any) => ({
+          alerts: alertsData.map((alert: AlertData) => ({
             messageType: alert.messageType,
             messageID: alert.messageID,
             messageURL: alert.messageURL,
@@ -92,9 +105,11 @@ export default function WeatherPage() {
             .fill(0)
             .map(() => Math.random() * 9),
         });
-      } catch (err) {
+      } catch (error: unknown) {
         setError("Failed to fetch space weather data");
-        console.error(err);
+        if (error instanceof Error) {
+          console.error(error.message);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -221,7 +236,7 @@ export default function WeatherPage() {
               <h2 className="text-xl font-bold mb-4">Space Weather Alerts</h2>
               <div className="space-y-4">
                 {weatherData.alerts.length > 0 ? (
-                  weatherData.alerts.map((alert, index) => (
+                  weatherData.alerts.map((alert) => (
                     <div
                       key={alert.messageID}
                       className="p-4 bg-black/30 rounded-lg"
