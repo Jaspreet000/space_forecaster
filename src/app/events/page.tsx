@@ -1,12 +1,50 @@
 "use client";
 import SpaceBackground from "@/components/SpaceBackground";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { format } from "date-fns";
+import dynamic from "next/dynamic";
 import {
-  AstronomicalEvent,
-  fetchAstronomicalEvents,
-} from "@/services/astronomyApi";
+  getAstronomyPictureOfDay,
+  type APOD,
+  type AstronomicalEvent,
+} from "@/services/api";
+
+// Import 3D components dynamically with no SSR
+const StarField = dynamic(() => import("@/components/StarField"), {
+  ssr: false,
+  loading: () => null,
+});
+
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const EventCard = ({ event }: { event: AstronomicalEvent }) => (
+  <motion.div
+    whileHover={{ scale: 1.02 }}
+    className="p-6 rounded-xl bg-gradient-to-br from-purple-900/50 to-indigo-900/50 backdrop-blur-sm border border-purple-500/20"
+  >
+    <div className="flex justify-between items-start mb-4">
+      <h3 className="text-xl font-semibold">
+        {event.name || event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+      </h3>
+      <span className="text-sm text-gray-400">{formatDate(event.date)}</span>
+    </div>
+    <p className="text-gray-300">{event.description}</p>
+    {event.intensity && (
+      <div className="mt-4">
+        <span className="px-3 py-1 rounded-full text-sm bg-purple-500/20 text-purple-300">
+          Intensity: {event.intensity}
+        </span>
+      </div>
+    )}
+  </motion.div>
+);
 
 export default function EventsPage() {
   const [events, setEvents] = useState<AstronomicalEvent[]>([]);
@@ -15,140 +53,134 @@ export default function EventsPage() {
   );
   const [filter, setFilter] = useState("all");
   const [dateRange, setDateRange] = useState("upcoming");
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [apod, setApod] = useState<APOD | null>(null);
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        let fetchedEvents = await fetchAstronomicalEvents();
+        // Mock data with correct event types
+        const mockEvents: AstronomicalEvent[] = [
+          {
+            type: "meteor",
+            name: "Lyrids Meteor Shower",
+            date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+            description:
+              "The Lyrids meteor shower will be visible from the Northern Hemisphere",
+            intensity: "Medium",
+          },
+          {
+            type: "eclipse",
+            name: "Partial Solar Eclipse",
+            date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+            description:
+              "A partial solar eclipse will be visible from parts of South America",
+            intensity: "High",
+          },
+          {
+            type: "conjunction",
+            name: "Venus-Jupiter Conjunction",
+            date: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
+            description:
+              "Venus and Jupiter will appear close together in the evening sky",
+          },
+        ];
 
-        // Apply filters
-        if (filter !== "all") {
-          fetchedEvents = fetchedEvents.filter(
-            (event) => event.type === filter
-          );
+        try {
+          const apodData = await getAstronomyPictureOfDay();
+          setApod(apodData);
+        } catch (error) {
+          console.error("Error fetching APOD:", error);
+          // Don't let APOD error prevent showing events
         }
 
-        if (dateRange !== "all") {
-          const today = new Date();
-          const oneMonth = new Date(today.setMonth(today.getMonth() + 1));
-          const oneYear = new Date(today.setFullYear(today.getFullYear() + 1));
-
-          fetchedEvents = fetchedEvents.filter((event) => {
-            const eventDate = new Date(event.date);
-            switch (dateRange) {
-              case "month":
-                return eventDate <= oneMonth;
-              case "year":
-                return eventDate <= oneYear;
-              case "upcoming":
-              default:
-                return eventDate >= today;
-            }
-          });
-        }
-
-        // Sort by date
-        fetchedEvents.sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-
-        setEvents(fetchedEvents);
-      } catch (error: unknown) {
-        setError(
-          "Failed to fetch astronomical events. Please try again later."
-        );
-        if (error instanceof Error) {
-          console.error(error.message);
-        }
+        setEvents(mockEvents);
+      } catch (error) {
+        console.error("Error fetching astronomical data:", error);
+        setError("Failed to load events. Please try again later.");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchEvents();
-  }, [filter, dateRange]);
+    fetchData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Star Field Background */}
+      <div className="fixed inset-0 z-0">
+        <StarField />
+      </div>
+
       <SpaceBackground />
 
       <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Header */}
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl md:text-6xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600"
+          transition={{ duration: 0.5 }}
         >
-          Astronomical Events
-        </motion.h1>
+          <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+            Astronomical Events
+          </h1>
 
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8 justify-center">
-          <select
-            className="bg-purple-900/50 border border-purple-500/20 rounded-lg px-4 py-2"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">All Events</option>
-            <option value="meteor">Meteor Showers</option>
-            <option value="eclipse">Eclipses</option>
-            <option value="conjunction">Conjunctions</option>
-          </select>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Astronomy Picture of the Day */}
+              {apod && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-indigo-900/50 backdrop-blur-sm border border-purple-500/20"
+                >
+                  <div className="aspect-video relative">
+                    <img
+                      src={apod.url}
+                      alt={apod.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <h2 className="text-2xl font-bold mb-2">
+                      Astronomy Picture of the Day
+                    </h2>
+                    <h3 className="text-xl text-purple-300 mb-4">
+                      {apod.title}
+                    </h3>
+                    <p className="text-gray-300">{apod.explanation}</p>
+                  </div>
+                </motion.div>
+              )}
 
-          <select
-            className="bg-purple-900/50 border border-purple-500/20 rounded-lg px-4 py-2"
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-          >
-            <option value="upcoming">Upcoming</option>
-            <option value="month">This Month</option>
-            <option value="year">This Year</option>
-          </select>
-        </div>
+              {/* Upcoming Events */}
+              <div className="grid gap-6 md:grid-cols-2">
+                {events.map((event, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                  >
+                    <EventCard event={event} />
+                  </motion.div>
+                ))}
+              </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-500 p-8 bg-red-500/10 rounded-lg">
-            {error}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
-              <motion.div
-                key={event.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-purple-900/50 to-indigo-900/50 backdrop-blur-sm 
-                          border border-purple-500/20 rounded-xl p-6 cursor-pointer"
-                onClick={() => setSelectedEvent(event)}
-              >
-                <h3 className="text-xl font-bold mb-2">{event.title}</h3>
-                <p className="text-gray-300 mb-4">
-                  {format(new Date(event.date), "MMMM dd, yyyy")}
-                </p>
-                <div className="flex gap-2 mb-2">
-                  <span className="px-2 py-1 bg-purple-500/20 rounded-full text-sm">
-                    {event.type}
-                  </span>
-                  {event.visibility && (
-                    <span className="px-2 py-1 bg-blue-500/20 rounded-full text-sm">
-                      {event.visibility}
-                    </span>
-                  )}
+              {events.length === 0 && (
+                <div className="text-center p-8 bg-purple-900/20 rounded-xl">
+                  <p className="text-gray-300">No upcoming events found</p>
                 </div>
-                <p className="text-sm text-gray-400">{event.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </motion.div>
 
         {/* Event Detail Modal */}
         {selectedEvent && (
@@ -164,24 +196,26 @@ export default function EventsPage() {
               className="bg-gradient-to-br from-purple-900/90 to-indigo-900/90 p-8 rounded-xl max-w-2xl w-full mx-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-2xl font-bold mb-4">{selectedEvent.title}</h2>
+              <h2 className="text-2xl font-bold mb-4">
+                {selectedEvent.name ||
+                  selectedEvent.type.charAt(0).toUpperCase() +
+                    selectedEvent.type.slice(1)}
+              </h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-gray-400">Date</p>
                   <p>{format(new Date(selectedEvent.date), "MMMM dd, yyyy")}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Peak Time</p>
-                  <p>{selectedEvent.peak_time}</p>
-                </div>
-                <div>
                   <p className="text-gray-400">Type</p>
                   <p className="capitalize">{selectedEvent.type}</p>
                 </div>
-                <div>
-                  <p className="text-gray-400">Visibility</p>
-                  <p>{selectedEvent.visibility}</p>
-                </div>
+                {selectedEvent.intensity && (
+                  <div>
+                    <p className="text-gray-400">Intensity</p>
+                    <p>{selectedEvent.intensity}</p>
+                  </div>
+                )}
               </div>
               <p className="text-gray-300 mb-6">{selectedEvent.description}</p>
               <button
