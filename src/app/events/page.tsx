@@ -1,9 +1,10 @@
 "use client";
 import SpaceBackground from "@/components/SpaceBackground";
 import { motion } from "framer-motion";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import {
   getAstronomyPictureOfDay,
   type APOD,
@@ -51,10 +52,7 @@ export default function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<AstronomicalEvent | null>(
     null
   );
-  const [filter, setFilter] = useState("all");
-  const [dateRange, setDateRange] = useState("upcoming");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [apod, setApod] = useState<APOD | null>(null);
 
   useEffect(() => {
@@ -98,7 +96,7 @@ export default function EventsPage() {
         setEvents(mockEvents);
       } catch (error) {
         console.error("Error fetching astronomical data:", error);
-        setError("Failed to load events. Please try again later.");
+        // Don't set error state as we're using mock data
       } finally {
         setLoading(false);
       }
@@ -141,10 +139,11 @@ export default function EventsPage() {
                   className="rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-indigo-900/50 backdrop-blur-sm border border-purple-500/20"
                 >
                   <div className="aspect-video relative">
-                    <img
+                    <Image
                       src={apod.url}
                       alt={apod.title}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   </div>
                   <div className="p-6">

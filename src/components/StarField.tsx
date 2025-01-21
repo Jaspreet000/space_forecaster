@@ -2,8 +2,18 @@
 
 import { useEffect, useState } from "react";
 
+interface Star {
+  id: number;
+  style: {
+    left: string;
+    top: string;
+    animationDelay: string;
+    animationDuration: string;
+  };
+}
+
 export default function StarField() {
-  const [stars, setStars] = useState<Array<{ id: number; style: any }>>([]);
+  const [stars, setStars] = useState<Star[]>([]);
 
   useEffect(() => {
     const generateStars = () => {
