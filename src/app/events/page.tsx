@@ -1,232 +1,250 @@
 "use client";
-import SpaceBackground from "@/components/SpaceBackground";
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
-import { format } from "date-fns";
-import dynamic from "next/dynamic";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import {
-  getAstronomyPictureOfDay,
-  type APOD,
-  type AstronomicalEvent,
-} from "@/services/api";
+import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 
-// Import 3D components dynamically with no SSR
-const StarField = dynamic(() => import("@/components/StarField"), {
-  ssr: false,
-  loading: () => null,
-});
+interface EventDetails {
+  phenomenon: string;
+  viewingGuide: string;
+  significance: string;
+  relatedEvents: string[];
+}
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-};
-
-const EventCard = ({ event }: { event: AstronomicalEvent }) => (
-  <motion.div
-    whileHover={{ scale: 1.02 }}
-    className="p-6 rounded-xl bg-gradient-to-br from-purple-900/50 to-indigo-900/50 backdrop-blur-sm border border-purple-500/20"
-  >
-    <div className="flex justify-between items-start mb-4">
-      <h3 className="text-xl font-semibold">
-        {event.name || event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-      </h3>
-      <span className="text-sm text-gray-400">{formatDate(event.date)}</span>
-    </div>
-    <p className="text-gray-300">{event.description}</p>
-    {event.intensity && (
-      <div className="mt-4">
-        <span className="px-3 py-1 rounded-full text-sm bg-purple-500/20 text-purple-300">
-          Intensity: {event.intensity}
-        </span>
-      </div>
-    )}
-  </motion.div>
-);
+interface AstronomicalEvent {
+  date: string;
+  title: string;
+  type:
+    | "meteor"
+    | "eclipse"
+    | "conjunction"
+    | "transit"
+    | "occultation"
+    | "other";
+  description: string;
+  location: string;
+  peakTime: string;
+  duration: string;
+  imageUrl: string;
+  details: EventDetails;
+}
 
 export default function EventsPage() {
   const [events, setEvents] = useState<AstronomicalEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<AstronomicalEvent | null>(
     null
   );
-  const [loading, setLoading] = useState(true);
-  const [apod, setApod] = useState<APOD | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchEvents = async () => {
       try {
-        // Mock data with correct event types
-        const mockEvents: AstronomicalEvent[] = [
-          {
-            type: "meteor",
-            name: "Lyrids Meteor Shower",
-            date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-            description:
-              "The Lyrids meteor shower will be visible from the Northern Hemisphere",
-            intensity: "Medium",
-          },
-          {
-            type: "eclipse",
-            name: "Partial Solar Eclipse",
-            date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-            description:
-              "A partial solar eclipse will be visible from parts of South America",
-            intensity: "High",
-          },
-          {
-            type: "conjunction",
-            name: "Venus-Jupiter Conjunction",
-            date: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
-            description:
-              "Venus and Jupiter will appear close together in the evening sky",
-          },
-        ];
-
-        try {
-          const apodData = await getAstronomyPictureOfDay();
-          setApod(apodData);
-        } catch (error) {
-          console.error("Error fetching APOD:", error);
-          // Don't let APOD error prevent showing events
-        }
-
-        setEvents(mockEvents);
+        const response = await axios.get("/api/astronomical-events");
+        setEvents(response.data);
       } catch (error) {
-        console.error("Error fetching astronomical data:", error);
-        // Don't set error state as we're using mock data
+        setError("Failed to load astronomical events");
+        console.error("Error fetching events:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchEvents();
   }, []);
 
+  const getEventTypeColor = (type: string) => {
+    const colors = {
+      meteor: "from-orange-500 to-red-600",
+      eclipse: "from-purple-500 to-indigo-600",
+      conjunction: "from-blue-500 to-cyan-600",
+      transit: "from-green-500 to-emerald-600",
+      occultation: "from-pink-500 to-rose-600",
+      other: "from-gray-500 to-slate-600",
+    };
+    return colors[type as keyof typeof colors] || colors.other;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-red-500 text-xl">{error}</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Star Field Background */}
-      <div className="fixed inset-0 z-0">
-        <StarField />
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+        Upcoming Astronomical Events
+      </h1>
+
+      {/* Events Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {events.map((event) => (
+          <motion.div
+            key={`${event.date}-${event.title}`}
+            layoutId={`card-${event.date}-${event.title}`}
+            onClick={() => setSelectedEvent(event)}
+            className="cursor-pointer group"
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="relative h-64 rounded-xl overflow-hidden">
+              <Image
+                src={event.imageUrl}
+                alt={event.title}
+                fill
+                className="object-cover transition-transform group-hover:scale-105"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <div
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2 bg-gradient-to-r ${getEventTypeColor(
+                    event.type
+                  )} text-white`}
+                >
+                  {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1">
+                  {event.title}
+                </h3>
+                <p className="text-sm text-gray-200">
+                  {new Date(event.date).toLocaleDateString()}{" "}
+                  {event.peakTime && `at ${event.peakTime}`}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      <SpaceBackground />
-
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-            Astronomical Events
-          </h1>
-
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {/* Astronomy Picture of the Day */}
-              {apod && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-indigo-900/50 backdrop-blur-sm border border-purple-500/20"
-                >
-                  <div className="aspect-video relative">
-                    <Image
-                      src={apod.url}
-                      alt={apod.title}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h2 className="text-2xl font-bold mb-2">
-                      Astronomy Picture of the Day
-                    </h2>
-                    <h3 className="text-xl text-purple-300 mb-4">
-                      {apod.title}
-                    </h3>
-                    <p className="text-gray-300">{apod.explanation}</p>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Upcoming Events */}
-              <div className="grid gap-6 md:grid-cols-2">
-                {events.map((event, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * index }}
-                  >
-                    <EventCard event={event} />
-                  </motion.div>
-                ))}
-              </div>
-
-              {events.length === 0 && (
-                <div className="text-center p-8 bg-purple-900/20 rounded-xl">
-                  <p className="text-gray-300">No upcoming events found</p>
-                </div>
-              )}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Event Detail Modal */}
+      {/* Event Details Modal */}
+      <AnimatePresence>
         {selectedEvent && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+            exit={{ opacity: 0 }}
             onClick={() => setSelectedEvent(null)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="bg-gradient-to-br from-purple-900/90 to-indigo-900/90 p-8 rounded-xl max-w-2xl w-full mx-4"
+              layoutId={`card-${selectedEvent.date}-${selectedEvent.title}`}
               onClick={(e) => e.stopPropagation()}
+              className="bg-black/90 rounded-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             >
-              <h2 className="text-2xl font-bold mb-4">
-                {selectedEvent.name ||
-                  selectedEvent.type.charAt(0).toUpperCase() +
-                    selectedEvent.type.slice(1)}
-              </h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-gray-400">Date</p>
-                  <p>{format(new Date(selectedEvent.date), "MMMM dd, yyyy")}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Type</p>
-                  <p className="capitalize">{selectedEvent.type}</p>
-                </div>
-                {selectedEvent.intensity && (
-                  <div>
-                    <p className="text-gray-400">Intensity</p>
-                    <p>{selectedEvent.intensity}</p>
-                  </div>
-                )}
+              <div className="relative h-96">
+                <Image
+                  src={selectedEvent.imageUrl}
+                  alt={selectedEvent.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1200px) 100vw, 1200px"
+                />
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="absolute top-4 right-4 bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
-              <p className="text-gray-300 mb-6">{selectedEvent.description}</p>
-              <button
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg"
-                onClick={() => setSelectedEvent(null)}
-              >
-                Close
-              </button>
+              <div className="p-6">
+                <div
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-gradient-to-r ${getEventTypeColor(
+                    selectedEvent.type
+                  )} text-white`}
+                >
+                  {selectedEvent.type.charAt(0).toUpperCase() +
+                    selectedEvent.type.slice(1)}
+                </div>
+                <h2 className="text-3xl font-bold mb-2">
+                  {selectedEvent.title}
+                </h2>
+                <p className="text-gray-400 mb-4">
+                  {new Date(selectedEvent.date).toLocaleDateString()}{" "}
+                  {selectedEvent.peakTime && `at ${selectedEvent.peakTime}`}
+                </p>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Description</h3>
+                    <p className="text-gray-300">{selectedEvent.description}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">
+                      Location & Duration
+                    </h3>
+                    <p className="text-gray-300">
+                      Visible from: {selectedEvent.location}
+                    </p>
+                    <p className="text-gray-300">
+                      Duration: {selectedEvent.duration}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">
+                      How It Occurs
+                    </h3>
+                    <p className="text-gray-300">
+                      {selectedEvent.details.phenomenon}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">
+                      Viewing Guide
+                    </h3>
+                    <p className="text-gray-300">
+                      {selectedEvent.details.viewingGuide}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Significance</h3>
+                    <p className="text-gray-300">
+                      {selectedEvent.details.significance}
+                    </p>
+                  </div>
+                  {selectedEvent.details.relatedEvents.length > 0 && (
+                    <div>
+                      <h3 className="text-xl font-semibold mb-2">
+                        Related Events
+                      </h3>
+                      <ul className="list-disc list-inside text-gray-300">
+                        {selectedEvent.details.relatedEvents.map(
+                          (event, index) => (
+                            <li key={index}>{event}</li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
