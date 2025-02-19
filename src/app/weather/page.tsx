@@ -12,13 +12,9 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartData,
 } from "chart.js";
-import {
-  getSpaceWeather,
-  getPlanetaryWeather,
-  type SpaceWeatherData,
-  type PlanetaryWeather,
-} from "@/services/api";
+import { getSpaceWeather, type SpaceWeatherData } from "@/services/api";
 
 // Register ChartJS components
 ChartJS.register(
@@ -298,7 +294,18 @@ export default function WeatherPage() {
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
   const [comparisonMode, setComparisonMode] = useState(false);
   const [selectedPlanets, setSelectedPlanets] = useState<string[]>([]);
-  const [chartData, setChartData] = useState<any>(null);
+  const [chartData, setChartData] = useState<ChartData<"line">>({
+    labels: [],
+    datasets: [
+      {
+        label: "Solar Wind Speed (km/s)",
+        data: [],
+        borderColor: "rgb(255, 99, 132)",
+        backgroundColor: "rgba(255, 99, 132, 0.5)",
+        tension: 0.4,
+      },
+    ],
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -335,8 +342,25 @@ export default function WeatherPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const generateChartData = (data: SpaceWeatherData) => {
-    // Your chart data generation logic here
+  const generateChartData = (weatherData: SpaceWeatherData) => {
+    const now = new Date();
+    const timeLabels = Array.from({ length: 6 }, (_, i) => {
+      const time = new Date(now.getTime() - (5 - i) * 60000);
+      return time.toLocaleTimeString();
+    });
+
+    setChartData({
+      labels: timeLabels,
+      datasets: [
+        {
+          label: "Solar Wind Speed (km/s)",
+          data: Array.from({ length: 6 }, () => weatherData.solarWind.speed),
+          borderColor: "rgb(255, 99, 132)",
+          backgroundColor: "rgba(255, 99, 132, 0.5)",
+          tension: 0.4,
+        },
+      ],
+    });
   };
 
   const togglePlanetComparison = (planetId: string) => {
