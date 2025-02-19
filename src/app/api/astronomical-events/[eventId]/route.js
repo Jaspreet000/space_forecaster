@@ -1,17 +1,14 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || "");
 
-export async function GET(
-  request: Request,
-  { params }: { params: { eventId: string } }
-) {
+export async function GET(request, context) {
   try {
-    const eventId = decodeURIComponent(params.eventId);
-    const [title, date] = eventId.split('---');
+    const eventId = decodeURIComponent(context.params.eventId);
+    const [title, date] = eventId.split("---");
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `Provide detailed information about the astronomical event "${title}" occurring on ${date}. Include only factual, accurate information in this JSON format:
     {
@@ -31,20 +28,20 @@ export async function GET(
       }
     }`;
 
-    console.log('Sending prompt to Gemini:', prompt);
+    console.log("Sending prompt to Gemini:", prompt);
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
-    console.log('Raw Gemini response:', text);
-    
+
+    console.log("Raw Gemini response:", text);
+
     // Clean and parse the response
-    const cleanedJson = text.replace(/```json\s*|\s*```/g, '').trim();
-    console.log('Cleaned JSON:', cleanedJson);
-    
+    const cleanedJson = text.replace(/```json\s*|\s*```/g, "").trim();
+    console.log("Cleaned JSON:", cleanedJson);
+
     const eventDetails = JSON.parse(cleanedJson);
-    console.log('Parsed event details:', eventDetails);
+    console.log("Parsed event details:", eventDetails);
 
     return NextResponse.json(eventDetails);
   } catch (error) {
@@ -54,4 +51,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}
