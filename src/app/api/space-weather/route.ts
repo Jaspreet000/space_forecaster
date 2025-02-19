@@ -17,21 +17,6 @@ interface SpaceWeatherData {
   };
 }
 
-// Mock data generator for consistent values
-function generateMockData(): SpaceWeatherData {
-  const now = new Date();
-  return {
-    solarWind: {
-      speed: Math.floor(350 + Math.sin(now.getTime() / 10000) * 50), // Oscillating between 300-400
-      timestamp: now.toISOString(),
-    },
-    geomagneticData: {
-      kpIndex: 2 + Math.sin(now.getTime() / 20000) * 2, // Oscillating between 0-4
-      timestamp: now.toISOString(),
-    }
-  };
-}
-
 async function getSpaceWeatherFromAI(): Promise<SpaceWeatherData> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
