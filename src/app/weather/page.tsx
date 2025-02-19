@@ -45,15 +45,19 @@ type PlanetDetails = {
   moons: number;
 };
 
-type Planet = {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  color: string;
-  facts: string[];
-  details: PlanetDetails;
-};
+interface WeatherDisplayData {
+  temperature?: {
+    average: string;
+    range: string;
+  };
+  atmosphere?: {
+    composition: string[];
+    pressure: string;
+  };
+  phenomena?: string[];
+  seasons?: string;
+  facts?: string[];
+}
 
 // Planet data with enhanced details
 const planets = [
@@ -288,90 +292,58 @@ export default function WeatherPage() {
   const [spaceWeather, setSpaceWeather] = useState<SpaceWeatherData | null>(
     null
   );
-  const [historicalData, setHistoricalData] = useState<
-    { timestamp: string; speed: number }[]
-  >([]);
+  const [weatherDisplay, setWeatherDisplay] =
+    useState<WeatherDisplayData | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
-  const [planetWeather, setPlanetWeather] = useState<PlanetaryWeather | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
-  const [planetaryWeather, setPlanetaryWeather] =
-    useState<PlanetaryWeather | null>(null);
-  const [loadingPlanet, setLoadingPlanet] = useState(false);
-  const [showDetails, setShowDetails] = useState<string | null>(null);
-  const [compareMode, setCompareMode] = useState(false);
-  const [comparedPlanets, setComparedPlanets] = useState<string[]>([]);
-
-  // Fetch space weather data
-  const fetchData = async () => {
-    try {
-      const data = await getSpaceWeather();
-      setSpaceWeather(data);
-
-      // Add new data point to historical data
-      setHistoricalData((prev) => {
-        const newData = [
-          ...prev,
-          {
-            timestamp: data.solarWind.timestamp,
-            speed: data.solarWind.speed,
-          },
-        ];
-        // Keep last 30 minutes of data
-        return newData.slice(-30);
-      });
-    } catch (error) {
-      console.error("Error fetching weather data:", error);
-    }
-  };
-
-  // Fetch data on mount and every minute
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000); // Refresh every minute
-    return () => clearInterval(interval);
-  }, []);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [selectedPlanets, setSelectedPlanets] = useState<string[]>([]);
+  const [chartData, setChartData] = useState<any>(null);
 
   useEffect(() => {
-    const fetchPlanetaryWeather = async () => {
-      if (!selectedPlanet) return;
-
-      setLoadingPlanet(true);
+    const fetchData = async () => {
       try {
-        const data = await getPlanetaryWeather(selectedPlanet);
-        setPlanetaryWeather(data);
-      } catch (error) {
-        console.error("Error fetching planetary weather:", error);
-        setPlanetaryWeather(null);
-      } finally {
-        setLoadingPlanet(false);
+        const weatherData = await getSpaceWeather();
+        setSpaceWeather(weatherData);
+        // Convert space weather data to display format
+        setWeatherDisplay({
+          temperature: {
+            average: `${weatherData.solarWind.speed} km/s`,
+            range: `${weatherData.geomagneticData.kpIndex} Kp`,
+          },
+          atmosphere: {
+            composition: [weatherData.additionalData?.solarFlares || "No data"],
+            pressure: weatherData.additionalData?.coronalHoles || "No data",
+          },
+          phenomena: [weatherData.additionalData?.radiationBelts || "No data"],
+          seasons: "Space weather conditions vary continuously",
+          facts: [
+            `Current solar wind speed: ${weatherData.solarWind.speed} km/s`,
+            `Current Kp index: ${weatherData.geomagneticData.kpIndex}`,
+          ],
+        });
+        generateChartData(weatherData);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch weather data"
+        );
       }
     };
 
-    fetchPlanetaryWeather();
-  }, [selectedPlanet]);
+    fetchData();
+    const interval = setInterval(fetchData, 300000); // Update every 5 minutes
+    return () => clearInterval(interval);
+  }, []);
 
-  const chartData = {
-    labels: historicalData.map((data) =>
-      new Date(data.timestamp).toLocaleTimeString()
-    ),
-    datasets: [
-      {
-        label: "Solar Wind Speed (km/s)",
-        data: historicalData.map((data) => data.speed),
-        borderColor: "rgb(255, 99, 132)",
-        backgroundColor: "rgba(255, 99, 132, 0.5)",
-        tension: 0.4,
-      },
-    ],
+  const generateChartData = (data: SpaceWeatherData) => {
+    // Your chart data generation logic here
   };
 
   const togglePlanetComparison = (planetId: string) => {
-    if (comparedPlanets.includes(planetId)) {
-      setComparedPlanets(comparedPlanets.filter((id) => id !== planetId));
-    } else if (comparedPlanets.length < 2) {
-      setComparedPlanets([...comparedPlanets, planetId]);
+    if (selectedPlanets.includes(planetId)) {
+      setSelectedPlanets((prev) => prev.filter((id) => id !== planetId));
+    } else if (selectedPlanets.length < 2) {
+      setSelectedPlanets((prev) => [...prev, planetId]);
     }
   };
 
@@ -472,11 +444,11 @@ export default function WeatherPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setCompareMode(!compareMode);
-              setComparedPlanets([]);
+              setComparisonMode(!comparisonMode);
+              setSelectedPlanets([]);
             }}
             className={`absolute -top-12 right-0 px-4 py-2 rounded-lg ${
-              compareMode
+              comparisonMode
                 ? "bg-purple-600 text-white"
                 : "bg-gray-700 text-gray-300"
             }`}
@@ -494,7 +466,7 @@ export default function WeatherPage() {
                 }}
                 className="flex-shrink-0 w-80 snap-center cursor-pointer"
                 onClick={() => {
-                  if (compareMode) {
+                  if (comparisonMode) {
                     togglePlanetComparison(planet.id);
                   } else {
                     setSelectedPlanet(planet.id);
@@ -503,8 +475,8 @@ export default function WeatherPage() {
               >
                 <div
                   className={`p-6 rounded-xl backdrop-blur-sm border relative overflow-hidden ${
-                    compareMode
-                      ? comparedPlanets.includes(planet.id)
+                    comparisonMode
+                      ? selectedPlanets.includes(planet.id)
                         ? `bg-gradient-to-br ${planet.color} bg-opacity-70 border-blue-500/50`
                         : "bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-gray-500/20"
                       : selectedPlanet === planet.id
@@ -595,8 +567,8 @@ export default function WeatherPage() {
                     whileTap={{ scale: 0.9 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowDetails(
-                        showDetails === planet.id ? null : planet.id
+                      setSelectedPlanet(
+                        selectedPlanet === planet.id ? null : planet.id
                       );
                     }}
                   >
@@ -604,7 +576,7 @@ export default function WeatherPage() {
                   </motion.div>
 
                   {/* Detailed Info Popup */}
-                  {showDetails === planet.id && (
+                  {selectedPlanet === planet.id && (
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -652,7 +624,7 @@ export default function WeatherPage() {
                   )}
 
                   {/* Compare Mode Indicator */}
-                  {compareMode && (
+                  {comparisonMode && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -660,12 +632,12 @@ export default function WeatherPage() {
                     >
                       <div
                         className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                          comparedPlanets.includes(planet.id)
+                          selectedPlanets.includes(planet.id)
                             ? "border-blue-500 bg-blue-500/50"
                             : "border-gray-500"
                         }`}
                       >
-                        {comparedPlanets.includes(planet.id) && "✓"}
+                        {selectedPlanets.includes(planet.id) && "✓"}
                       </div>
                     </motion.div>
                   )}
@@ -676,7 +648,7 @@ export default function WeatherPage() {
         </div>
 
         {/* Planet Comparison View */}
-        {compareMode && comparedPlanets.length === 2 && (
+        {comparisonMode && selectedPlanets.length === 2 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -685,7 +657,7 @@ export default function WeatherPage() {
             <h3 className="text-2xl font-bold mb-6">Planet Comparison</h3>
             <div className="grid grid-cols-3 gap-4">
               <div></div>
-              {comparedPlanets.map((planetId) => (
+              {selectedPlanets.map((planetId) => (
                 <div key={planetId} className="text-center">
                   <h4 className="text-xl font-bold mb-2">
                     {planets.find((p) => p.id === planetId)?.name}
@@ -723,7 +695,7 @@ export default function WeatherPage() {
                   <div className="font-semibold text-gray-400">
                     {metric.label}
                   </div>
-                  {comparedPlanets.map((planetId) => {
+                  {selectedPlanets.map((planetId) => {
                     const planet = planets.find((p) => p.id === planetId);
                     const value = planet?.details?.[metric.key];
                     return (
@@ -751,29 +723,30 @@ export default function WeatherPage() {
             transition={{ duration: 0.5 }}
             className="mt-8"
           >
-            {loadingPlanet ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
+            {error ? (
+              <div className="p-6 rounded-xl bg-red-900/20 border border-red-500/20">
+                <p className="text-lg text-red-300">{error}</p>
               </div>
-            ) : planetaryWeather ? (
+            ) : weatherDisplay ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Temperature Card */}
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="p-6 rounded-xl bg-gradient-to-br from-blue-900/50 to-purple-900/50 backdrop-blur-sm border border-blue-500/20"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl bg-gradient-to-br from-orange-900/20 to-red-900/20 border border-orange-500/20"
                 >
-                  <h3 className="text-2xl font-semibold mb-4">Temperature</h3>
-                  <div className="space-y-4">
+                  <h3 className="text-2xl font-bold mb-4">Temperature</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-400">Average</p>
                       <p className="text-2xl font-bold">
-                        {planetaryWeather?.temperature?.average || "N/A"}
+                        {weatherDisplay.temperature?.average || "N/A"}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400">Range</p>
                       <p className="text-xl">
-                        {planetaryWeather?.temperature?.range || "N/A"}
+                        {weatherDisplay.temperature?.range || "N/A"}
                       </p>
                     </div>
                   </div>
@@ -781,78 +754,78 @@ export default function WeatherPage() {
 
                 {/* Atmosphere Card */}
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="p-6 rounded-xl bg-gradient-to-br from-purple-900/50 to-pink-900/50 backdrop-blur-sm border border-purple-500/20"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border border-blue-500/20"
                 >
-                  <h3 className="text-2xl font-semibold mb-4">Atmosphere</h3>
-                  <div className="space-y-4">
+                  <h3 className="text-2xl font-bold mb-4">Atmosphere</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-400">Composition</p>
                       <ul className="list-disc list-inside">
-                        {planetaryWeather?.atmosphere?.composition?.map(
-                          (gas, index) => (
+                        {weatherDisplay.atmosphere?.composition.map(
+                          (gas: string, index: number) => (
                             <li key={index} className="text-lg">
                               {gas}
                             </li>
                           )
-                        ) || <li className="text-lg">Data unavailable</li>}
+                        )}
                       </ul>
                     </div>
                     <div>
                       <p className="text-gray-400">Pressure</p>
                       <p className="text-xl">
-                        {planetaryWeather?.atmosphere?.pressure || "N/A"}
+                        {weatherDisplay.atmosphere?.pressure || "N/A"}
                       </p>
                     </div>
                   </div>
                 </motion.div>
 
-                {/* Weather Phenomena Card */}
+                {/* Phenomena Card */}
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="p-6 rounded-xl bg-gradient-to-br from-indigo-900/50 to-blue-900/50 backdrop-blur-sm border border-indigo-500/20"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-500/20"
                 >
-                  <h3 className="text-2xl font-semibold mb-4">
-                    Weather Phenomena
-                  </h3>
+                  <h3 className="text-2xl font-bold mb-4">Notable Phenomena</h3>
                   <ul className="list-disc list-inside space-y-2">
-                    {planetaryWeather?.phenomena?.map((phenomenon, index) => (
-                      <li key={index} className="text-lg">
-                        {phenomenon}
-                      </li>
-                    )) || (
-                      <li className="text-lg">No phenomena data available</li>
+                    {weatherDisplay.phenomena?.map(
+                      (phenomenon: string, index: number) => (
+                        <li key={index} className="text-lg">
+                          {phenomenon}
+                        </li>
+                      )
                     )}
                   </ul>
                 </motion.div>
 
-                {/* Seasonal Changes Card */}
+                {/* Seasons Card */}
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="p-6 rounded-xl bg-gradient-to-br from-pink-900/50 to-rose-900/50 backdrop-blur-sm border border-pink-500/20"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-green-500/20"
                 >
-                  <h3 className="text-2xl font-semibold mb-4">
-                    Seasonal Changes
-                  </h3>
+                  <h3 className="text-2xl font-bold mb-4">Seasonal Changes</h3>
                   <p className="text-lg">
-                    {planetaryWeather?.seasons || "Seasonal data unavailable"}
+                    {weatherDisplay.seasons || "Seasonal data unavailable"}
                   </p>
                 </motion.div>
 
-                {/* Interesting Facts Card */}
+                {/* Facts Card */}
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="p-6 rounded-xl bg-gradient-to-br from-violet-900/50 to-indigo-900/50 backdrop-blur-sm border border-violet-500/20 md:col-span-2"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl bg-gradient-to-br from-yellow-900/20 to-amber-900/20 border border-yellow-500/20 md:col-span-2"
                 >
-                  <h3 className="text-2xl font-semibold mb-4">
-                    Interesting Facts
-                  </h3>
+                  <h3 className="text-2xl font-bold mb-4">Interesting Facts</h3>
                   <ul className="list-disc list-inside space-y-2">
-                    {planetaryWeather?.facts?.map((fact, index) => (
-                      <li key={index} className="text-lg">
-                        {fact}
-                      </li>
-                    )) || <li className="text-lg">No facts available</li>}
+                    {weatherDisplay.facts?.map(
+                      (fact: string, index: number) => (
+                        <li key={index} className="text-lg">
+                          {fact}
+                        </li>
+                      )
+                    )}
                   </ul>
                 </motion.div>
               </div>

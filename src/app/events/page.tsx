@@ -56,9 +56,13 @@ export default function EventsPage() {
         setError(null);
         const response = await axios.get("/api/astronomical-events");
         setEvents(response.data);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Error fetching events:", error);
-        setError("Failed to load astronomical events. Please try again later.");
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to load astronomical events. Please try again later.";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }

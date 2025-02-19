@@ -16,6 +16,37 @@ function generateMockData() {
   };
 }
 
+// Define types for the weather data
+interface WeatherData {
+  solarWind: {
+    speed: number;
+    timestamp: string;
+  };
+  geomagneticData: {
+    kpIndex: number;
+    timestamp: string;
+  };
+  additionalData?: {
+    solarFlares: string;
+    coronalHoles: string;
+    radiationBelts: string;
+  };
+}
+
+interface PlanetaryWeatherData {
+  temperature: {
+    average: number;
+    range: string;
+  };
+  atmosphere: {
+    composition: string[];
+    pressure: number;
+  };
+  phenomena: string[];
+  seasons: string[];
+  facts: string[];
+}
+
 async function fetchNoaaData() {
   try {
     // Try primary endpoints first
@@ -125,7 +156,7 @@ async function getAIWeatherInsights(planet: string, retryCount = 0): Promise<any
   }
 }
 
-async function getSpaceWeatherFromAI(): Promise<any> {
+async function getSpaceWeatherFromAI(): Promise<WeatherData> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
@@ -159,7 +190,7 @@ Return ONLY the JSON object, no additional text or markdown.`;
     const cleanedText = text.replace(/```json\s*|\s*```/g, '').trim();
     
     try {
-      const data = JSON.parse(cleanedText);
+      const data = JSON.parse(cleanedText) as WeatherData;
 
       // Validate the data structure
       if (!data.solarWind?.speed || !data.geomagneticData?.kpIndex) {
@@ -202,7 +233,7 @@ export async function GET() {
   try {
     const data = await getSpaceWeatherFromAI();
     return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in space weather API route:', error);
     return NextResponse.json({ error: 'Failed to fetch space weather data' }, { status: 500 });
   }

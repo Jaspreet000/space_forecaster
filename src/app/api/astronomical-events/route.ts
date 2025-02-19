@@ -163,14 +163,4 @@ function getBaseEvents() {
     ...event,
     imageUrl: `https://images.unsplash.com/photo-${EVENT_IMAGES[event.type as keyof typeof EVENT_IMAGES]}?auto=format&fit=crop&w=1000&q=80`
   }));
-}
-
-function cleanJsonString(str: string): string {
-  str = str.replace(/^\uFEFF/, '');
-  str = str.replace(/[^\x20-\x7E\s]/g, '');
-  str = str.replace(/```json\s*|\s*```/g, '').trim();
-  str = str.replace(/^JSON\s*/i, '').trim();
-  str = str.replace(/\r?\n|\r/g, ' ');
-  str = str.replace(/\s+/g, ' ');
-  return str;
 } 
